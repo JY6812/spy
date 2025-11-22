@@ -1,0 +1,440 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Roblox 动态黑白名单管理</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Inter', system-ui, sans-serif;
+        }
+        body {
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+            min-height: 100vh;
+            padding: 20px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            color: #fff;
+        }
+        .container {
+            background: rgba(22, 28, 48, 0.85);
+            backdrop-filter: blur(10px);
+            border-radius: 16px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            width: 100%;
+            max-width: 800px;
+            overflow: hidden;
+            transition: transform 0.3s ease;
+        }
+        .container:hover {
+            transform: translateY(-5px);
+        }
+        .header {
+            background: linear-gradient(90deg, #3a86ff, #8338ec);
+            padding: 24px;
+            text-align: center;
+        }
+        .header h1 {
+            font-size: 24px;
+            font-weight: 600;
+            margin-bottom: 4px;
+        }
+        .header p {
+            font-size: 14px;
+            opacity: 0.8;
+        }
+        .tab-nav {
+            display: flex;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        .tab-btn {
+            flex: 1;
+            padding: 18px;
+            border: none;
+            background: transparent;
+            color: #fff;
+            font-size: 16px;
+            font-weight: 500;
+            cursor: pointer;
+            position: relative;
+            transition: all 0.3s ease;
+            opacity: 0.7;
+        }
+        .tab-btn.active {
+            opacity: 1;
+        }
+        .tab-btn.active::after {
+            content: '';
+            position: absolute;
+            bottom: -1px;
+            left: 0;
+            width: 100%;
+            height: 3px;
+            background: linear-gradient(90deg, #3a86ff, #8338ec);
+            border-radius: 3px 3px 0 0;
+        }
+        .tab-btn:hover {
+            opacity: 1;
+            background: rgba(255, 255, 255, 0.05);
+        }
+        .tab-content {
+            padding: 24px;
+            display: none;
+        }
+        .tab-content.active {
+            display: block;
+            animation: fadeIn 0.4s ease;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .input-group {
+            display: flex;
+            gap: 12px;
+            margin-bottom: 20px;
+        }
+        .input-group input {
+            flex: 1;
+            padding: 14px 18px;
+            border-radius: 10px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            background: rgba(30, 38, 60, 0.7);
+            color: #fff;
+            font-size: 15px;
+            outline: none;
+            transition: all 0.3s ease;
+        }
+        .input-group input:focus {
+            border-color: #3a86ff;
+            box-shadow: 0 0 0 3px rgba(58, 134, 255, 0.2);
+        }
+        .input-group input::placeholder {
+            color: rgba(255, 255, 255, 0.4);
+        }
+        .btn {
+            padding: 14px 24px;
+            border-radius: 10px;
+            border: none;
+            font-size: 15px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        .btn-add {
+            background: #3a86ff;
+            color: #fff;
+        }
+        .btn-add:hover {
+            background: #2a75e6;
+            transform: translateY(-2px);
+        }
+        .btn-del {
+            background: #ff4d6d;
+            color: #fff;
+        }
+        .btn-del:hover {
+            background: #e83e5d;
+            transform: translateY(-2px);
+        }
+        .list-container {
+            max-height: 400px;
+            overflow-y: auto;
+            border-radius: 10px;
+            background: rgba(30, 38, 60, 0.5);
+            padding: 8px;
+        }
+        .list-container::-webkit-scrollbar {
+            width: 6px;
+        }
+        .list-container::-webkit-scrollbar-track {
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 3px;
+        }
+        .list-container::-webkit-scrollbar-thumb {
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 3px;
+        }
+        .list-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 14px 16px;
+            border-radius: 8px;
+            background: rgba(38, 48, 75, 0.8);
+            margin-bottom: 8px;
+            transition: all 0.2s ease;
+        }
+        .list-item:hover {
+            background: rgba(48, 60, 95, 0.8);
+            transform: translateX(3px);
+        }
+        .list-item:last-child {
+            margin-bottom: 0;
+        }
+        .item-info {
+            font-size: 15px;
+        }
+        .item-info span {
+            opacity: 0.6;
+            margin-left: 8px;
+            font-size: 14px;
+        }
+        .sync-status {
+            margin-top: 16px;
+            font-size: 13px;
+            text-align: right;
+            opacity: 0.6;
+        }
+        .sync-success {
+            color: #4ade80;
+        }
+        .sync-loading {
+            color: #facc15;
+        }
+        .sync-fail {
+            color: #ff4d6d;
+        }
+
+        /* 响应式适配 */
+        @media (max-width: 600px) {
+            .header h1 {
+                font-size: 20px;
+            }
+            .tab-btn {
+                padding: 14px;
+                font-size: 14px;
+            }
+            .tab-content {
+                padding: 16px;
+            }
+            .input-group {
+                flex-direction: column;
+                gap: 8px;
+            }
+            .btn {
+                padding: 12px;
+                width: 100%;
+            }
+            .list-item {
+                padding: 12px 14px;
+                font-size: 14px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>Roblox 动态黑白名单管理</h1>
+            <p>添加/删除名单后自动同步至GitHub</p>
+        </div>
+        <div class="tab-nav">
+            <button class="tab-btn active" data-tab="white">白名单</button>
+            <button class="tab-btn" data-tab="black">黑名单</button>
+        </div>
+        <!-- 白名单内容 -->
+        <div class="tab-content active" id="white-tab">
+            <div class="input-group">
+                <input type="text" id="white-input" placeholder="输入Roblox玩家ID/用户名">
+                <button class="btn btn-add" id="white-add">添加</button>
+                <button class="btn btn-del" id="white-del">删除</button>
+            </div>
+            <div class="list-container" id="white-list">
+                <!-- 名单项将通过JS动态生成 -->
+                <div class="list-item">
+                    <div class="item-info">示例玩家 <span>ID: 123456</span></div>
+                </div>
+            </div>
+            <div class="sync-status" id="white-sync">同步状态: 未同步</div>
+        </div>
+        <!-- 黑名单内容 -->
+        <div class="tab-content" id="black-tab">
+            <div class="input-group">
+                <input type="text" id="black-input" placeholder="输入Roblox玩家ID/用户名">
+                <button class="btn btn-add" id="black-add">添加</button>
+                <button class="btn btn-del" id="black-del">删除</button>
+            </div>
+            <div class="list-container" id="black-list">
+                <!-- 名单项将通过JS动态生成 -->
+                <div class="list-item">
+                    <div class="item-info">示例玩家 <span>ID: 654321</span></div>
+                </div>
+            </div>
+            <div class="sync-status" id="black-sync">同步状态: 未同步</div>
+        </div>
+    </div>
+
+    <script>
+        // 配置GitHub信息（替换为自己的）
+        const CONFIG = {
+            GIST_ID: "187162325",
+            GITHUB_TOKEN: "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",
+            FILE_NAME: "roblox_black_white_list.json"
+        };
+
+        // 存储名单数据
+        let listData = {
+            whiteList: [],
+            blackList: []
+        };
+
+        // 标签切换
+        const tabBtns = document.querySelectorAll('.tab-btn');
+        const tabContents = document.querySelectorAll('.tab-content');
+        tabBtns.forEach(btn => {
+            btn.addEventListener('click', () => {
+                const tab = btn.dataset.tab;
+                // 切换按钮状态
+                tabBtns.forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                // 切换内容
+                tabContents.forEach(c => c.classList.remove('active'));
+                document.getElementById(`${tab}-tab`).classList.add('active');
+            });
+        });
+
+        // 初始化：从GitHub拉取数据
+        async function loadFromGithub() {
+            try {
+                const res = await fetch(`https://api.github.com/gists/${CONFIG.GIST_ID}`);
+                if (!res.ok) throw new Error('拉取失败');
+                const data = await res.json();
+                const fileData = JSON.parse(data.files[CONFIG.FILE_NAME].content);
+                listData = fileData;
+                refreshList('white');
+                refreshList('black');
+                updateSyncStatus('white', 'success', '已同步');
+                updateSyncStatus('black', 'success', '已同步');
+            } catch (err) {
+                console.error('GitHub拉取失败:', err);
+                updateSyncStatus('white', 'fail', '拉取失败');
+                updateSyncStatus('black', 'fail', '拉取失败');
+            }
+        }
+
+        // 同步数据至GitHub
+        async function syncToGithub() {
+            updateSyncStatus('white', 'loading', '同步中...');
+            updateSyncStatus('black', 'loading', '同步中...');
+            try {
+                const res = await fetch(`https://api.github.com/gists/${CONFIG.GIST_ID}`, {
+                    method: 'PATCH',
+                    headers: {
+                        'Authorization': `token ${CONFIG.GITHUB_TOKEN}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        files: {
+                            [CONFIG.FILE_NAME]: { content: JSON.stringify(listData, null, 2) }
+                        }
+                    })
+                });
+                if (!res.ok) throw new Error('同步失败');
+                updateSyncStatus('white', 'success', '同步成功');
+                updateSyncStatus('black', 'success', '同步成功');
+            } catch (err) {
+                console.error('GitHub同步失败:', err);
+                updateSyncStatus('white', 'fail', '同步失败');
+                updateSyncStatus('black', 'fail', '同步失败');
+            }
+        }
+
+        // 刷新名单显示
+        function refreshList(type) {
+            const listEl = document.getElementById(`${type}-list`);
+            const list = listData[`${type}List`];
+            listEl.innerHTML = '';
+            if (list.length === 0) {
+                listEl.innerHTML = '<div style="padding:20px;text-align:center;opacity:0.5;">暂无数据</div>';
+                return;
+            }
+            list.forEach(item => {
+                const itemEl = document.createElement('div');
+                itemEl.className = 'list-item';
+                itemEl.innerHTML = `<div class="item-info">${item.name} <span>ID: ${item.id}</span></div>`;
+                listEl.appendChild(itemEl);
+            });
+        }
+
+        // 更新同步状态
+        function updateSyncStatus(type, status, text) {
+            const statusEl = document.getElementById(`${type}-sync`);
+            statusEl.className = 'sync-status';
+            statusEl.classList.add(`sync-${status}`);
+            statusEl.textContent = `同步状态: ${text}`;
+        }
+
+        // 验证Roblox玩家（模拟，实际可对接Roblox API）
+        async function verifyPlayer(inputVal) {
+            if (!inputVal.trim()) return null;
+            // 模拟验证：ID为数字，用户名非数字，返回{id, name}
+            if (!isNaN(Number(inputVal))) {
+                return { id: Number(inputVal), name: `玩家_${inputVal}` }; // 实际替换为Roblox API获取用户名
+            } else {
+                return { id: Math.floor(Math.random()*1000000), name: inputVal }; // 实际替换为Roblox API获取ID
+            }
+        }
+
+        // 添加名单事件
+        function addListEvent(type) {
+            const btn = document.getElementById(`${type}-add`);
+            const input = document.getElementById(`${type}-input`);
+            btn.addEventListener('click', async () => {
+                const val = input.value.trim();
+                const player = await verifyPlayer(val);
+                if (!player) {
+                    alert('玩家信息无效');
+                    return;
+                }
+                const list = listData[`${type}List`];
+                // 去重
+                if (list.some(item => item.id === player.id)) {
+                    alert('该玩家已在名单中');
+                    return;
+                }
+                list.push(player);
+                refreshList(type);
+                input.value = '';
+                syncToGithub(); // 自动同步
+            });
+        }
+
+        // 删除名单事件
+        function delListEvent(type) {
+            const btn = document.getElementById(`${type}-del`);
+            const input = document.getElementById(`${type}-input`);
+            btn.addEventListener('click', async () => {
+                const val = input.value.trim();
+                const player = await verifyPlayer(val);
+                if (!player) {
+                    alert('玩家信息无效');
+                    return;
+                }
+                const list = listData[`${type}List`];
+                const index = list.findIndex(item => item.id === player.id);
+                if (index === -1) {
+                    alert('该玩家不在名单中');
+                    return;
+                }
+                list.splice(index, 1);
+                refreshList(type);
+                input.value = '';
+                syncToGithub(); // 自动同步
+            });
+        }
+
+        // 初始化事件
+        addListEvent('white');
+        addListEvent('black');
+        delListEvent('white');
+        delListEvent('black');
+        loadFromGithub(); // 页面加载时拉取数据
+    </script>
+</body>
+</html>
